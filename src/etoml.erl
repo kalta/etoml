@@ -55,10 +55,9 @@
 
 parse(Msg) ->
 	try
-		case parse2(Msg) of
-			{ok, List} -> {ok, join(List, [])};
-			{error, Error} -> {error, Error}
-		end
+		{Rest, Line} = parse_space(Msg, 1),
+		{ok, List} = parse(Rest, Line, [], []),
+		{ok, join(List, [])}
 	catch 
 		throw:TError -> {error, TError}
 	end.
