@@ -50,17 +50,35 @@
 
 %% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary
 -spec parse(binary()|string()) -> 
-	[keyval()].
+	[keyval()] | {error, Error}
+	when Error :: {invalid_key, integer()} |
+				  {invalid_name, integer()}	| 
+				  {invalid_date, integer()} |
+				  {invalid_number, integer()} | 
+				  {invalid_array, integer()} |
+				  {unfinished_array, integer()} | 
+				  {duplicated_key, binary()}.
 
 parse(Msg) ->
-	case parse2(Msg) of
-		{ok, List} -> {ok, join(List, [])};
-		{error, Error} -> {error, Error}
+	try
+		case parse2(Msg) of
+			{ok, List} -> {ok, join(List, [])};
+			{error, Error} -> {error, Error}
+		end
+	catch 
+		throw:TError -> {error, TError}
 	end.
 
+
 %% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary as raw
--spec parse2(binary()|string()) ->
-	[{Key::[binary()], Value::element()}].
+-spec parse2(binary()|string()) -> 
+	[{Key::[binary()], Value::element()}] | {error, Error}
+	when Error :: {invalid_key, integer()} |
+				  {invalid_name, integer()}	| 
+				  {invalid_date, integer()} |
+				  {invalid_number, integer()} | 
+				  {invalid_array, integer()} |
+				  {unfinished_array, integer()}.
 
 parse2(Msg) when is_binary(Msg) ->
 	parse2(binary_to_list(Msg));
@@ -70,7 +88,7 @@ parse2(Msg) when is_list(Msg) ->
 		{Rest, Line} = parse_space(Msg, 1),
 		parse(Rest, Line, [], [])
 	catch
-		throw:Error -> {error, Error}
+		throw:TError -> {error, TError}
 	end.
 
 
@@ -279,6 +297,26 @@ parser_test() ->
        		]}
        	]}
     ]} = parse(test_msg()).
+
+parser2_test() ->
+	{ok,[{[<<"title">>],<<"TOML Example">>},
+    	 {[<<"owner">>,<<"name">>],<<"Tom Preston-Werner">>},
+     	{[<<"owner">>,<<"organization">>],<<"GitHub">>},
+     	{[<<"owner">>,<<"bio">>],
+      	<<"GitHub Cofounder & CEO\nLikes tater tots and beer.">>},
+     	{[<<"owner">>,<<"dob">>],{{1979,5,27},{7,32,0}}},
+     	{[<<"database">>,<<"server">>],<<"192.168.1.1">>},
+     	{[<<"database">>,<<"ports">>],[8001,8001,8002]},
+     	{[<<"database">>,<<"connection_max">>],5000},
+     	{[<<"database">>,<<"enabled">>],true},
+     	{[<<"servers">>,<<"alpha">>,<<"ip">>],<<"10.0.0.1">>},
+     	{[<<"servers">>,<<"alpha">>,<<"dc">>],<<"eqdc10">>},
+     	{[<<"servers">>,<<"beta">>,<<"ip">>],<<"10.0.0.2">>},
+     	{[<<"servers">>,<<"beta">>,<<"dc">>],<<"eqdc10">>},
+     	{[<<"clients">>,<<"data">>],
+      		[[<<"gamma">>,<<"delta">>],[1,2]]},
+     	{[<<"clients">>,<<"hosts">>],[<<"alpha">>,<<"omega">>]}]} =
+    parse2(test_msg()).
 
 speed_test() ->
 	Msg = test_msg(),
