@@ -7,7 +7,7 @@ A pure Erlang parser for [TOML](https://github.com/mojombo/toml).
 * It implements all defined elements (according to version 
 [f68d014bfd](https://github.com/mojombo/toml/commit/f68d014bfd4a84a64fb5f6a7c1a83a4162415d4b)). 
 * It is fast. It can parse about 15Mbytes/sec on an Core2 Duo Macbook.
-* It detects many errors and returns the error type and line number. 
+* It detects many errors, and returns the error type and line number. 
 
 
 Usage
@@ -27,7 +27,12 @@ Eshell V5.9.2  (abort with ^G)
 {ok,[{<<"key">>,1}]}
 ```
 
-You can also include etoml in your application as a rebar dependency.
+You can also include etoml in your application as a rebar dependency in your 
+`rebar.config` file:
+
+```erlang
+{deps, [{etoml, ".*",{git, "git@github.com:kalta/etoml.git", master}}]}.
+```
 
 
 
