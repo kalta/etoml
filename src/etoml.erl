@@ -23,25 +23,22 @@
 
 %% @doc TOML language parser 
 
-% {@link https://github.com/mojombo/toml}
-
 -module(etoml).
 -author('Carlos Gonzalez <carlosj.gf@gmail.com>').
 
 -export([parse/1, parse2/1]).
+-export_type([basic_type/0, element/0, block/0]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--compile([export_all]).
-
--type basic_element() :: binary() | boolean() | integer() | float() |
+-type basic_type() :: binary() | boolean() | integer() | float() |
 					     calendar:datetime().
 
--type element() :: basic_element() | [basic_element()].					    
+-type element() :: basic_type() | [basic_type()].					    
 
--type keyval() :: {Key::binary(), Element::element() | node()}.
+-type block() :: {Key::binary(), Value::element()|block()}.
 
 
 %% ===================================================================
@@ -50,13 +47,10 @@
 
 %% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary
 -spec parse(binary()|string()) -> 
-	[keyval()] | {error, Error}
-	when Error :: {invalid_key, integer()} |
-				  {invalid_name, integer()}	| 
-				  {invalid_date, integer()} |
-				  {invalid_number, integer()} | 
-				  {invalid_array, integer()} |
-				  {unfinished_array, integer()} | 
+	[block()] | {error, Error}
+	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
+				  {invalid_date, integer()} | {invalid_number, integer()} | 
+				  {invalid_array, integer()} | {invalid_string, integer()} | 
 				  {duplicated_key, binary()}.
 
 parse(Msg) ->
@@ -72,13 +66,10 @@ parse(Msg) ->
 
 %% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary as raw
 -spec parse2(binary()|string()) -> 
-	[{Key::[binary()], Value::element()}] | {error, Error}
-	when Error :: {invalid_key, integer()} |
-				  {invalid_name, integer()}	| 
-				  {invalid_date, integer()} |
-				  {invalid_number, integer()} | 
-				  {invalid_array, integer()} |
-				  {unfinished_array, integer()}.
+	[{Keys::[binary()], Value::element()}] | {error, Error}
+	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
+				  {invalid_date, integer()} | {invalid_number, integer()} | 
+				  {invalid_array, integer()} | {invalid_string, integer()}.
 
 parse2(Msg) when is_binary(Msg) ->
 	parse2(binary_to_list(Msg));
@@ -118,7 +109,7 @@ parse([], _Line, _Names, Data) ->
 	{ok, lists:reverse(Data)};
 parse([$[|Rest], Line, _Names, Data) ->
 	{Rest1, Line1} = parse_space(Rest, Line),
-	{Names1, {Rest2, Line2}} = parse_names(Rest1, Line1, [], []),	
+	{Names1, {Rest2, Line2}} = parse_group(Rest1, Line1, [], []),	
 	parse(Rest2, Line2, Names1, Data);
 parse(Rest, Line, Names, Data) ->
 	% io:format("Parsing ~p: ~p\n\n", [Line, Rest]),
@@ -169,7 +160,7 @@ parse_string([$"|Rest], Line, Val) ->
 parse_string([L|Rest], Line, Val) ->
 	parse_string(Rest, Line, [L|Val]);
 parse_string([], Line, _) ->
-	throw({unfinished_string, Line}).
+	throw({invalid_string, Line}).
 
 %% @private
 parse_array(Rest, Line, Acc) ->
@@ -248,14 +239,14 @@ parse_text([L|Rest], Line, Acc) ->
 	parse_text(Rest, Line, [L|Acc]).
 
 %% @private
-parse_names([$.|Rest], Line, Acc1, Acc2) ->
-	parse_names(Rest, Line, [], [list_to_binary(lists:reverse(Acc1))|Acc2]);
-parse_names([$]|Rest], Line, Acc1, Acc2) ->
+parse_group([$.|Rest], Line, Acc1, Acc2) ->
+	parse_group(Rest, Line, [], [list_to_binary(lists:reverse(Acc1))|Acc2]);
+parse_group([$]|Rest], Line, Acc1, Acc2) ->
 	{[list_to_binary(lists:reverse(Acc1))|Acc2], parse_space(Rest, Line)};
-parse_names([L|_], Line, _Acc1, _Acc2) when L=:=9; L=:=32; L=:=10; L=:=13 ->
-	throw({invalid_name, Line});
-parse_names([L|Rest], Line, Acc1, Acc2) ->
-	parse_names(Rest, Line, [L|Acc1], Acc2).
+parse_group([L|_], Line, _Acc1, _Acc2) when L=:=9; L=:=32; L=:=10; L=:=13 ->
+	throw({invalid_group, Line});
+parse_group([L|Rest], Line, Acc1, Acc2) ->
+	parse_group(Rest, Line, [L|Acc1], Acc2).
 
 
 
