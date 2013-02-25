@@ -1,6 +1,7 @@
 %% -------------------------------------------------------------------
 %%
-%% etoml: A parser and generator for TOML language (https://github.com/mojombo/toml)
+%% etoml: A parser and generator for TOML language 
+%% (https://github.com/mojombo/toml)
 %%
 %% Copyright (c) 2013 Carlos Gonzalez Florido.  All Rights Reserved.
 %%
@@ -20,80 +21,36 @@
 %%
 %% -------------------------------------------------------------------
 
-%% @doc TOML language parser and generator
-%% @see https://github.com/mojombo/toml
+%% @doc TOML language parser 
+
+% {@link https://github.com/mojombo/toml}
 
 -module(etoml).
 -author('Carlos Gonzalez <carlosj.gf@gmail.com>').
-% -include_lib("eunit/include/eunit.hrl").
 
--export([t/0, parse/1]).
+-export([parse/1, parse2/1]).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 -compile([export_all]).
 
-t1() ->
-	Now = now(),
-	N = 10000,
-	t1(N),
-	Diff = timer:now_diff(now(), Now) / 1000000,
-	io:format("~p passes/sec\n", [round(N/Diff)]).
+-type basic_element() :: binary() | boolean() | integer() | float() |
+					     calendar:datetime().
 
+-type element() :: basic_element() | [basic_element()].					    
 
-
-t1(0) -> 0;
-t1(N) -> {ok, _} = t(), t1(N-1).
-
-
-% LF -> 10 \n
-% CR -> 13 \r
-
-t2() ->
-	A = [
-		{[a,b], val_ab},
-		{[a,c], cal_ac},
-		{[a,c,d], {val_acd}}
-	],
-	join(A, []).
-
-
-t() ->
-	Msg = <<"
-# This is a TOML document. Boom.
-
-title = \"TOML Example\"
-[owner]
-name =  \"Tom Preston-Werner\"
-organization = \"GitHub\"
-bio = \"GitHub Cofounder & CEO\nLikes tater tots and beer.\"
-dob = 1979-05-27T07:32:00Z # First class dates? Why not?
-
-[database]
-server = \"192.168.1.1\"
-
-ports = [ 8001, 8001, 8002 ]
-connection_max = 5000.1
-enabled = true
-
-[servers]
-
-  # You can indent as you please. Tabs or spaces. TOML don't care.
-  [servers.alpha]
-  ip = \"10.0.0.1\"
-  dc = \"eqdc10\"
-
-  [servers.beta]
-  ip = \"10.0.0.2\"
-  ip = 1
-  dc = \"eqdc10\"
-[clients]
-data = [ [\"gamma\", \"delta\"], [1, 2] ] # just an update to make sure parsers support it
-	">>,
-	parse(Msg).
-
+-type keyval() :: {Key::binary(), Element::element() | node()}.
 
 
 %% ===================================================================
 %% Public
 %% ===================================================================
+
+%% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary
+-spec parse(binary()|string()) -> 
+	[keyval()].
 
 parse(Msg) ->
 	case parse2(Msg) of
@@ -101,24 +58,9 @@ parse(Msg) ->
 		{error, Error} -> {error, Error}
 	end.
 
-
-join([], Acc) -> lists:reverse(Acc);
-join([{Keys, Val}|Rest], Acc) -> 
-	join(Rest, join(Keys, Val, Acc)).
-
-join([Key], Val, Acc) ->
-	case lists:keymember(Key, 1, Acc) of
-		false -> [{Key, Val}|Acc];
-		true -> throw({duplicated_key, Key})
-	end;
-join([Key|Rest], Val, Acc) ->
-	case lists:keytake(Key, 1, Acc) of
-		false -> [{Key, join(Rest, Val, [])}|Acc];
-		{value, {_, Acc1}, AccRest} -> [{Key, join(Rest, Val, Acc1)}|AccRest]
-	end.
-
-
-
+%% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary as raw
+-spec parse2(binary()|string()) ->
+	[{Key::[binary()], Value::element()}].
 
 parse2(Msg) when is_binary(Msg) ->
 	parse2(binary_to_list(Msg));
@@ -132,16 +74,33 @@ parse2(Msg) when is_list(Msg) ->
 	end.
 
 
+%% ===================================================================
+%% Private
+%% ===================================================================
 
+%% @private
+join([], Acc) -> lists:reverse(Acc);
+join([{Keys, Val}|Rest], Acc) -> 
+	join(Rest, join(Keys, Val, Acc)).
 
+%% @private
+join([Key], Val, Acc) ->
+	case lists:keymember(Key, 1, Acc) of
+		false -> [{Key, Val}|Acc];
+		true -> throw({duplicated_key, Key})
+	end;
+join([Key|Rest], Val, Acc) ->
+	case lists:keytake(Key, 1, Acc) of
+		false -> [{Key, join(Rest, Val, [])}|Acc];
+		{value, {_, Acc1}, AccRest} -> [{Key, join(Rest, Val, Acc1)}|AccRest]
+	end.
 
-
-	
+%% @private
 parse([], _Line, _Names, Data) ->
 	{ok, lists:reverse(Data)};
 parse([$[|Rest], Line, _Names, Data) ->
 	{Rest1, Line1} = parse_space(Rest, Line),
-	{Names1, {Rest2, Line2}} = parse_names(Rest1, Line1),	
+	{Names1, {Rest2, Line2}} = parse_names(Rest1, Line1, [], []),	
 	parse(Rest2, Line2, Names1, Data);
 parse(Rest, Line, Names, Data) ->
 	% io:format("Parsing ~p: ~p\n\n", [Line, Rest]),
@@ -149,9 +108,9 @@ parse(Rest, Line, Names, Data) ->
 	Keys = lists:reverse([Key|Names]),
 	parse(Rest1, Line1, Names, [{Keys, Value}|Data]).
 
-
+%% @private
 parse_key(Rest, Line) ->
-	case parse_text(Rest, Line) of
+	case parse_text(Rest, Line, []) of
 		{Key, {[$=|Rest1], Line1}} ->
 			{Rest2, Line2} = parse_space(Rest1, Line1),
 			{Value, {Rest3, Line3}} = parse_value(Rest2, Line2),
@@ -160,21 +119,21 @@ parse_key(Rest, Line) ->
 			throw({invalid_key, Line})
 	end.
 
-
+%% @private
 parse_value([$"|Rest], Line) ->	
 	parse_string(Rest, Line, []);
 parse_value([$[|Rest], Line) ->	
 	{Rest1, Line1} = parse_space(Rest, Line),
 	parse_array(Rest1, Line1, []);
 parse_value(Rest, Line) ->
-	case parse_text(Rest, Line) of
+	case parse_text(Rest, Line, []) of
 		{"true", Pos} -> {true, Pos};
 		{"false", Pos} -> {false, Pos};
 		{[_,_,_,_,$-|_]=Date, Pos} -> {parse_date(Date, Line), Pos};
 		{Number, Pos} -> {parse_number(Number, Line), Pos}
 	end.
 
-
+%% @private
 parse_string("\\0"++Rest, Line, Val) ->
 	parse_string(Rest, Line, [0|Val]);
 parse_string("\\t"++Rest, Line, Val) ->
@@ -194,7 +153,7 @@ parse_string([L|Rest], Line, Val) ->
 parse_string([], Line, _) ->
 	throw({unfinished_string, Line}).
 
-
+%% @private
 parse_array(Rest, Line, Acc) ->
 	case parse_value(Rest, Line) of
 		{<<>>, {[$[|Rest1], Line1}} ->
@@ -213,7 +172,7 @@ parse_array(Rest, Line, Acc) ->
 			throw({invalid_array, Line})
 	end.
 
-
+%% @private
 parse_date([A1, A2, A3, A4, $-, M1, M2, $-, D1, D2, $T, H1, H2, $:, I1, I2, $:,
 	        S1, S2, $Z], _Line)
 			when is_integer(A1), is_integer(A2), is_integer(A3), is_integer(A4),
@@ -232,7 +191,7 @@ parse_date([A1, A2, A3, A4, $-, M1, M2, $-, D1, D2, $T, H1, H2, $:, I1, I2, $:,
 parse_date(_, Line) ->
 	throw({invalid_date, Line}).
 
-
+%% @private
 parse_number(String, Line) ->
 	case catch list_to_integer(String) of
 		{'EXIT', _} -> 
@@ -244,6 +203,7 @@ parse_number(String, Line) ->
 			Integer
 	end.
 
+%% @private
 parse_space([9|Rest], Line) -> parse_space(Rest, Line);
 parse_space([32|Rest], Line) -> parse_space(Rest, Line);
 parse_space([10|Rest], Line) -> parse_space(Rest, Line+1);
@@ -251,16 +211,13 @@ parse_space([13, 10|Rest], Line) -> parse_space(Rest, Line+1);
 parse_space([$#|Rest], Line) -> parse_comment(Rest, Line);
 parse_space(Rest, Line) -> {Rest, Line}. 
 
-
+%% @private
 parse_comment([10|Rest], Line) -> parse_space(Rest, Line+1);
 parse_comment([13, 10|Rest], Line) -> parse_space(Rest, Line+1);
 parse_comment([_|Rest], Line) -> parse_comment(Rest, Line);
 parse_comment([], Line) -> {[], Line}.
 
-
-parse_text(Rest, Line) ->
-	parse_text(Rest, Line, []).
-
+%% @private
 parse_text([], Line, Acc) ->
 	{lists:reverse(Acc), {[], Line}};
 parse_text([L|_]=Rest, Line, Acc) when L=:=9; L=:=32; L=:=$=; L=:=$,; L=:=$]->
@@ -272,9 +229,7 @@ parse_text([13, 10|Rest], Line, Acc) ->
 parse_text([L|Rest], Line, Acc) ->
 	parse_text(Rest, Line, [L|Acc]).
 
-parse_names(Rest, Line) ->
-	parse_names(Rest, Line, [], []).
-
+%% @private
 parse_names([$.|Rest], Line, Acc1, Acc2) ->
 	parse_names(Rest, Line, [], [list_to_binary(lists:reverse(Acc1))|Acc2]);
 parse_names([$]|Rest], Line, Acc1, Acc2) ->
@@ -283,5 +238,100 @@ parse_names([L|_], Line, _Acc1, _Acc2) when L=:=9; L=:=32; L=:=10; L=:=13 ->
 	throw({invalid_name, Line});
 parse_names([L|Rest], Line, Acc1, Acc2) ->
 	parse_names(Rest, Line, [L|Acc1], Acc2).
+
+
+
+%% ===================================================================
+%% Tests
+%% ===================================================================
+
+-ifdef(TEST).
+
+parser_test() ->
+	{ok,[
+		{<<"title">>, <<"TOML Example">>},
+     	{<<"owner">>, [
+     		{<<"dob">>, {{1979,5,27},{7,32,0}}},
+       		{<<"bio">>, <<"GitHub Cofounder & CEO\nLikes tater tots and beer.">>},
+       		{<<"organization">>, <<"GitHub">>},
+       		{<<"name">>, <<"Tom Preston-Werner">>}
+       	]},
+     	{<<"database">>, [
+     		{<<"enabled">>, true},
+       		{<<"connection_max">>, 5000},
+       		{<<"ports">>, [8001,8001,8002]},
+       		{<<"server">>, <<"192.168.1.1">>}]},
+     		{<<"servers">>, [
+     			{<<"beta">>, [
+     				{<<"dc">>, <<"eqdc10">>},
+     				{<<"ip">>, <<"10.0.0.2">>}
+     			]},
+       			{<<"alpha">>, [
+       				{<<"dc">>, <<"eqdc10">>},
+       				{<<"ip">>, <<"10.0.0.1">>}
+       			]}
+       		]},
+     	{<<"clients">>, [
+      		{<<"hosts">>, [<<"alpha">>,<<"omega">>]},
+       		{<<"data">>, [
+       			[<<"gamma">>, <<"delta">>],
+       			[1,2]
+       		]}
+       	]}
+    ]} = parse(test_msg()).
+
+speed_test() ->
+	Msg = test_msg(),
+	Now = now(),
+	N = 10000,
+	speed_test(Msg, N),
+	Diff = timer:now_diff(now(), Now) / 1000000,
+	?debugFmt("~p passes/sec (~p Mbyes/sec)\n", 
+				[round(N/Diff), round(N*length(Msg)/Diff/1024/1024)]).
+
+speed_test(_, 0) -> 0;
+speed_test(Msg, N) -> {ok, _} = parse(Msg), speed_test(Msg, N-1).
+
+test_msg() ->
+"# This is a TOML document. Boom.
+
+title = \"TOML Example\"
+
+[owner]
+name = \"Tom Preston-Werner\"
+organization = \"GitHub\"
+bio = \"GitHub Cofounder & CEO\nLikes tater tots and beer.\"
+dob = 1979-05-27T07:32:00Z # First class dates? Why not?
+
+[database]
+server = \"192.168.1.1\"
+ports = [ 8001, 8001, 8002 ]
+connection_max = 5000
+enabled = true
+
+[servers]
+
+  # You can indent as you please. Tabs or spaces. TOML don't care.
+  [servers.alpha]
+  ip = \"10.0.0.1\"
+  dc = \"eqdc10\"
+
+  [servers.beta]
+  ip = \"10.0.0.2\"
+  dc = \"eqdc10\"
+
+[clients]
+data = [ [\"gamma\", \"delta\"], [1, 2] ] # just an update to make sure parsers support it
+
+# Line breaks are OK when inside arrays
+hosts = [
+  \"alpha\",
+  \"omega\"
+]
+".
+
+-endif.
+
+
 
 

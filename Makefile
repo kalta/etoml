@@ -1,9 +1,22 @@
-REBAR = ./rebar
 
-all: app
+.PHONY: all compile clean eunit test doc
 
-app:
-	erlc src/etoml.erl -o ebin
+all: compile
 
-launch: 
-	erl -name -pa ebin 
+compile:
+	./rebar compile
+
+clean:
+	./rebar clean
+	rm -f doc/edoc-info
+	rm -f doc/*.html
+	rm -f doc/*.png
+	rm -f doc/*.css
+
+eunit:
+	./rebar eunit
+
+test: eunit
+
+doc:
+	./rebar doc
