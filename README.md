@@ -1,14 +1,13 @@
 
-
 TOML language Erlang parser
 ===========================
 
 A pure Erlang parser for [TOML](https://github.com/mojombo/toml).
 
 * It implements all defined elements (according to version 
-SHA: f68d014bfd4a84a64fb5f6a7c1a83a4162415d4b). 
-* It is fast. It can parse about 15Mbytes/sec on an Core2 Duo MacbookPro.
-* It can detect errors and return the type of error and line number. 
+[f68d014bfd](https://github.com/mojombo/toml/commit/f68d014bfd4a84a64fb5f6a7c1a83a4162415d4b)). 
+* It is fast. It can parse about 15Mbytes/sec on an Core2 Duo Macbook.
+* It detects many errors and returns the error type and line number. 
 
 
 Usage
@@ -19,6 +18,13 @@ git clone git@github.com:kalta/etoml.git
 cd etoml
 make
 make test
+
+$ erl -pa ebin
+Erlang R15B02 (erts-5.9.2) [source] [64-bit] [smp:8:8] [async-threads:0] [hipe] [kernel-poll:false] [dtrace]
+
+Eshell V5.9.2  (abort with ^G)
+1> etoml:parse("key=1").
+{ok,[{<<"key">>,1}]}
 ```
 
 You can also include etoml in your application as a rebar dependency.
@@ -68,7 +74,7 @@ hosts = [
 ]
 ```
 
-is parsed calling etoml:parse/1 as:
+is parsed calling `etoml:parse/1` as:
 
 ```erlang
 	{ok,[
@@ -101,10 +107,11 @@ is parsed calling etoml:parse/1 as:
        			[1,2]
        		]}
        	]}
-    ]}```
+    ]}
+```
 
-etoml generates an intermediate parse result that can also be usuful. If etoml:parse2/1
-is used instead of etoml:parse/1 the result is
+etoml generates an intermediate parse result that can also be usuful. If `etoml:parse2/1`
+is used instead of `etoml:parse/1` the result is:
 
 ```erlang
 {ok,[{[<<"title">>],<<"TOML Example">>},
