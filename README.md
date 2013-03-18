@@ -1,4 +1,3 @@
-
 TOML language Erlang parser
 ===========================
 
@@ -115,7 +114,7 @@ is parsed calling `etoml:parse/1` as:
     ]}
 ```
 
-etoml generates an intermediate parse result that can also be usuful. If `etoml:parse2/1`
+etoml generates an intermediate parse result that can also be useful. If `etoml:parse2/1`
 is used instead of `etoml:parse/1` the result is:
 
 ```erlang
