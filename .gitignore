@@ -1,2 +1,4 @@
-*.beam
-.eunit
+/.eunit
+/.test
+/ebin/*.beam
+/ebin/*.app
