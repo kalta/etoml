@@ -170,15 +170,15 @@ parse_string([], Line, _) ->
 %% @private
 parse_array(Rest, Line, Acc) ->
 	case parse_value(Rest, Line) of
-		{<<>>, {[$[|Rest1], Line1}} ->
+		{"", {[$[|Rest1], Line1}} ->
 			{Value, {Rest2, Line2}} = parse_array(Rest1, Line1, []),
 			parse_array(Rest2, Line2, [Value|Acc]);
-		{<<>>, {[$,|_], _}} ->
+		{"", {[$,|_], _}} ->
 			throw({invalid_array, Line});
 		{Value, {[$,|Rest1], Line1}} ->
 			{Rest2, Line2} = parse_space(Rest1, Line1),
 			parse_array(Rest2, Line2, [Value|Acc]);
-		{<<>>, {[$]|Rest1], Line1}} ->
+		{"", {[$]|Rest1], Line1}} ->
 			{lists:reverse(Acc), parse_space(Rest1, Line1)};
 		{Value, {[$]|Rest1], Line1}} ->
 			{lists:reverse([Value|Acc]), parse_space(Rest1, Line1)};
