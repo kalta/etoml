@@ -51,7 +51,7 @@
 	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
 				  {invalid_date, integer()} | {invalid_number, integer()} | 
 				  {invalid_array, integer()} | {invalid_string, integer()} | 
-				  {duplicated_key, binary()}.
+				  {undefined_value, integer()} | {duplicated_key, binary()}.
 
 parse(Msg) ->
 	try
@@ -68,7 +68,8 @@ parse(Msg) ->
 	[{Keys::[binary()], Value::element()}] | {error, Error}
 	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
 				  {invalid_date, integer()} | {invalid_number, integer()} | 
-				  {invalid_array, integer()} | {invalid_string, integer()}.
+				  {invalid_array, integer()} | {invalid_string, integer()} |
+				  {undefined_value, integer()} | {duplicated_key, binary()}.
 
 parse2(Msg) when is_binary(Msg) ->
 	parse2(binary_to_list(Msg));
@@ -121,8 +122,12 @@ parse_key(Rest, Line) ->
 	case parse_text(Rest, Line, []) of
 		{Key, {[$=|Rest1], Line1}} ->
 			{Rest2, Line2} = parse_space(Rest1, Line1),
-			{Value, {Rest3, Line3}} = parse_value(Rest2, Line2),
-			{{list_to_binary(Key), Value}, {Rest3, Line3}};
+			case parse_value(Rest2, Line2) of
+				{undefined, {_Rest3, Line3}} ->
+					throw({undefined_value, Line3});
+				{Value, {Rest3, Line3}} ->
+					{{list_to_binary(Key), Value}, {Rest3, Line3}}
+			end;
 		_ ->
 			throw({invalid_key, Line})
 	end.
@@ -138,6 +143,7 @@ parse_value(Rest, Line) ->
 		{"true", Pos} -> {true, Pos};
 		{"false", Pos} -> {false, Pos};
 		{[_,_,_,_,$-|_]=Date, Pos} -> {parse_date(Date, Line), Pos};
+		{"", Pos} -> {undefined, Pos};
 		{Number, Pos} -> {parse_number(Number, Line), Pos}
 	end.
 
