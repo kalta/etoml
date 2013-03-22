@@ -91,19 +91,22 @@ parse2(Msg) when is_list(Msg) ->
 
 %% @private
 join([], Acc) -> lists:reverse(Acc);
-join([{Keys, Val}|Rest], Acc) -> 
-	join(Rest, join(Keys, Val, Acc)).
-
+join([{Keys, Val}|Rest], Acc) -> join(Rest, join(Keys, Val, Acc, [])).
+	
 %% @private
-join([Key], Val, Acc) ->
+join([Key], Val, Acc, KeysAcc) ->
 	case lists:keymember(Key, 1, Acc) of
-		false -> [{Key, Val}|Acc];
-		true -> throw({duplicated_key, Key})
+		true -> throw({duplicated_key, list_to_binary(lists:reverse([Key|KeysAcc]))});
+		false -> [{Key, Val}|Acc]
 	end;
-join([Key|Rest], Val, Acc) ->
+join([Key|Rest], Val, Acc, KeysAcc) ->
 	case lists:keytake(Key, 1, Acc) of
-		false -> [{Key, join(Rest, Val, [])}|Acc];
-		{value, {_, Acc1}, AccRest} -> [{Key, join(Rest, Val, Acc1)}|AccRest]
+		false -> 
+			[{Key, join(Rest, Val, [], [$., Key|KeysAcc])}|Acc];
+		{value, {_, Acc1}, AccRest} when is_list(Acc1) -> 
+			[{Key, join(Rest, Val, Acc1, [$., Key|KeysAcc])}|AccRest];
+		{value, _, _} ->
+			throw({duplicated_key, list_to_binary(lists:reverse([Key|KeysAcc]))})
 	end.
 
 %% @private
@@ -310,6 +313,17 @@ parser2_test() ->
       		[[<<"gamma">>,<<"delta">>],[1,2]]},
      	{[<<"clients">>,<<"hosts">>],[<<"alpha">>,<<"omega">>]}]} =
     parse2(test_msg()).
+
+duplicated_test() ->
+	{error, {duplicated_key, <<"b">>}} = 
+		etoml:parse("b = 1\n b = 1\n"),
+	{error, {duplicated_key, <<"a.b">>}} = 
+		etoml:parse("[a]\n b = 1\n b = 1\n"),
+	{error, {duplicated_key, <<"a.b">>}} = 
+		parse("[a.b]\n c = 1\n [a]\n b = 1\n"),
+	{error, {duplicated_key, <<"a.b">>}} = 	
+		parse("[a]\n b = 1\n [a.b]\n c = 1\n"),
+	ok.
 
 speed_test() ->
 	Msg = test_msg(),
