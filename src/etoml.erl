@@ -53,6 +53,9 @@
 				  {invalid_array, integer()} | {invalid_string, integer()} | 
 				  {duplicated_key, binary()}.
 
+parse(Msg) when is_binary(Msg) ->
+	parse(binary_to_list(Msg));
+
 parse(Msg) ->
 	try
 		{Rest, Line} = parse_space(Msg, 1),
