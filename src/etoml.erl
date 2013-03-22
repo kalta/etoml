@@ -173,22 +173,20 @@ parse_string([], Line, _) ->
 %% @private
 parse_array(Rest, Line, Acc) ->
 	case parse_value(Rest, Line) of
-		{"", {[$[|Rest1], Line1}} ->
-			{Value, {Rest2, Line2}} = parse_array(Rest1, Line1, []),
-			parse_array(Rest2, Line2, [Value|Acc]);
-		{"", {[$,|_], _}} ->
+		% Empty array
+		{undefined, {[$]|Rest1], Line1}} ->
+			{lists:reverse(Acc), parse_space(Rest1, Line1)};
+		{undefined, _} ->
 			throw({invalid_array, Line});
-		{Value, {[$,|Rest1], Line1}} when Value =/= undefined ->
+		{Value, {[$]|Rest1], Line1}} ->
+			{lists:reverse([Value|Acc]), parse_space(Rest1, Line1)};
+		{Value, {[$,|Rest1], Line1}} ->
 			case parse_space(Rest1, Line1) of
 				{[$]|Rest2], Line2} -> %% "Python-style" empty last array item
 					{lists:reverse([Value|Acc]), parse_space(Rest2, Line2)};
 				{Rest2, Line2} ->
 					parse_array(Rest2, Line2, [Value|Acc])
 			end;
-		{"", {[$]|Rest1], Line1}} ->
-			{lists:reverse(Acc), parse_space(Rest1, Line1)};
-		{Value, {[$]|Rest1], Line1}} ->
-			{lists:reverse([Value|Acc]), parse_space(Rest1, Line1)};
 		_ ->
 			throw({invalid_array, Line})
 	end.
@@ -320,6 +318,10 @@ parser2_test() ->
       		[[<<"gamma">>,<<"delta">>],[1,2]]},
      	{[<<"clients">>,<<"hosts">>],[<<"alpha">>,<<"omega">>]}]} =
     parse2(test_msg()).
+
+array_test() ->
+	{ok,[{<<"a">>, [<<"a b">>,true,1,[1,2,3,[true,false]],false]}]} = 
+      parse("a=  [\"a b\" ,true,  1 , [1, 2 , 3,  [true, false]  ,] , false, ] ").
 
 speed_test() ->
 	Msg = test_msg(),
