@@ -420,10 +420,10 @@ array_test() ->
 
 speed_test() ->
 	Msg = test_msg(),
-	Now = erlang:timestamp(),
+	Now = os:timestamp(),
 	N = 10000,
 	speed_test(Msg, N),
-	Diff = timer:now_diff(erlang:timestamp(), Now) / 1000000,
+	Diff = timer:now_diff(os:timestamp(), Now) / 1000000,
 	?debugFmt("~p passes/sec (~p Mbyes/sec)\n", 
 				[round(N/Diff), round(N*length(Msg)/Diff/1024/1024)]).
 
