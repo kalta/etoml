@@ -297,6 +297,39 @@ parse_group([L|Rest], Line, Acc1, Acc2) ->
 
 -ifdef(TEST).
 
+file_test() ->
+        {ok,[
+		{<<"title">>, <<"TOML Example">>},
+     	{<<"owner">>, [
+     		{<<"dob">>, {{1979,5,27},{7,32,0}}},
+       		{<<"bio">>, <<"GitHub Cofounder & CEO\nLikes tater tots and beer.">>},
+       		{<<"organization">>, <<"GitHub">>},
+       		{<<"name">>, <<"Tom Preston-Werner">>}
+       	]},
+     	{<<"database">>, [
+     		{<<"enabled">>, true},
+       		{<<"connection_max">>, 5000},
+       		{<<"ports">>, [8001,8001,8002]},
+       		{<<"server">>, <<"192.168.1.1">>}]},
+     		{<<"servers">>, [
+     			{<<"beta">>, [
+     				{<<"dc">>, <<"eqdc10">>},
+     				{<<"ip">>, <<"10.0.0.2">>}
+     			]},
+       			{<<"alpha">>, [
+       				{<<"dc">>, <<"eqdc10">>},
+       				{<<"ip">>, <<"10.0.0.1">>}
+       			]}
+       		]},
+     	{<<"clients">>, [
+      		{<<"hosts">>, [<<"alpha">>,<<"omega">>]},
+       		{<<"data">>, [
+       			[<<"gamma">>, <<"delta">>],
+       			[1,2]
+       		]}
+       	]}
+    ]} = file(<<"../test/test.toml">>).
+
 parser_test() ->
 	{ok,[
 		{<<"title">>, <<"TOML Example">>},
@@ -329,6 +362,26 @@ parser_test() ->
        		]}
        	]}
     ]} = parse(test_msg()).
+
+file2_test() ->
+	{ok,[{[<<"title">>],<<"TOML Example">>},
+    	 {[<<"owner">>,<<"name">>],<<"Tom Preston-Werner">>},
+     	{[<<"owner">>,<<"organization">>],<<"GitHub">>},
+     	{[<<"owner">>,<<"bio">>],
+      	<<"GitHub Cofounder & CEO\nLikes tater tots and beer.">>},
+     	{[<<"owner">>,<<"dob">>],{{1979,5,27},{7,32,0}}},
+     	{[<<"database">>,<<"server">>],<<"192.168.1.1">>},
+     	{[<<"database">>,<<"ports">>],[8001,8001,8002]},
+     	{[<<"database">>,<<"connection_max">>],5000},
+     	{[<<"database">>,<<"enabled">>],true},
+     	{[<<"servers">>,<<"alpha">>,<<"ip">>],<<"10.0.0.1">>},
+     	{[<<"servers">>,<<"alpha">>,<<"dc">>],<<"eqdc10">>},
+     	{[<<"servers">>,<<"beta">>,<<"ip">>],<<"10.0.0.2">>},
+     	{[<<"servers">>,<<"beta">>,<<"dc">>],<<"eqdc10">>},
+     	{[<<"clients">>,<<"data">>],
+      		[[<<"gamma">>,<<"delta">>],[1,2]]},
+     	{[<<"clients">>,<<"hosts">>],[<<"alpha">>,<<"omega">>]}]} =
+    file2(<<"../test/test.toml">>).
 
 parser2_test() ->
 	{ok,[{[<<"title">>],<<"TOML Example">>},
@@ -367,10 +420,10 @@ array_test() ->
 
 speed_test() ->
 	Msg = test_msg(),
-	Now = now(),
+	Now = erlang:timestamp(),
 	N = 10000,
 	speed_test(Msg, N),
-	Diff = timer:now_diff(now(), Now) / 1000000,
+	Diff = timer:now_diff(erlang:timestamp(), Now) / 1000000,
 	?debugFmt("~p passes/sec (~p Mbyes/sec)\n", 
 				[round(N/Diff), round(N*length(Msg)/Diff/1024/1024)]).
 
