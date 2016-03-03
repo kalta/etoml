@@ -26,7 +26,7 @@
 -module(etoml).
 -author('Carlos Gonzalez <carlosj.gf@gmail.com>').
 
--export([parse/1, parse2/1]).
+-export([parse/1, parse2/1, file/1, file2/1]).
 -export_type([basic_type/0, element/0, block/0]).
 
 -ifdef(TEST).
@@ -44,6 +44,34 @@
 %% ===================================================================
 %% Public
 %% ===================================================================
+
+-spec file(binary()|string()) -> 
+	[block()] | {error, Error}
+	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
+				  {invalid_date, integer()} | {invalid_number, integer()} | 
+				  {invalid_array, integer()} | {invalid_string, integer()} | 
+				  {undefined_value, integer()} | {duplicated_key, binary()}.
+file(Filename) ->
+    try
+        {ok, Result} = file:read_file(Filename),
+        parse(Result)
+    catch
+        throw:Error -> {error, Error}
+    end.
+
+-spec file2(binary()|string()) -> 
+	[{Keys::[binary()], Value::element()}] | {error, Error}
+	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
+				  {invalid_date, integer()} | {invalid_number, integer()} | 
+				  {invalid_array, integer()} | {invalid_string, integer()} |
+				  {undefined_value, integer()} | {duplicated_key, binary()}.
+file2(Filename) ->
+    try
+        {ok, Result} = file:read_file(Filename),
+        parse2(Result)
+    catch
+        throw:Error -> {error, Error}
+    end.
 
 %% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary
 -spec parse(binary()|string()) -> 
@@ -269,6 +297,39 @@ parse_group([L|Rest], Line, Acc1, Acc2) ->
 
 -ifdef(TEST).
 
+file_test() ->
+        {ok,[
+		{<<"title">>, <<"TOML Example">>},
+     	{<<"owner">>, [
+     		{<<"dob">>, {{1979,5,27},{7,32,0}}},
+       		{<<"bio">>, <<"GitHub Cofounder & CEO\nLikes tater tots and beer.">>},
+       		{<<"organization">>, <<"GitHub">>},
+       		{<<"name">>, <<"Tom Preston-Werner">>}
+       	]},
+     	{<<"database">>, [
+     		{<<"enabled">>, true},
+       		{<<"connection_max">>, 5000},
+       		{<<"ports">>, [8001,8001,8002]},
+       		{<<"server">>, <<"192.168.1.1">>}]},
+     		{<<"servers">>, [
+     			{<<"beta">>, [
+     				{<<"dc">>, <<"eqdc10">>},
+     				{<<"ip">>, <<"10.0.0.2">>}
+     			]},
+       			{<<"alpha">>, [
+       				{<<"dc">>, <<"eqdc10">>},
+       				{<<"ip">>, <<"10.0.0.1">>}
+       			]}
+       		]},
+     	{<<"clients">>, [
+      		{<<"hosts">>, [<<"alpha">>,<<"omega">>]},
+       		{<<"data">>, [
+       			[<<"gamma">>, <<"delta">>],
+       			[1,2]
+       		]}
+       	]}
+    ]} = file(<<"../test/test.toml">>).
+
 parser_test() ->
 	{ok,[
 		{<<"title">>, <<"TOML Example">>},
@@ -301,6 +362,26 @@ parser_test() ->
        		]}
        	]}
     ]} = parse(test_msg()).
+
+file2_test() ->
+	{ok,[{[<<"title">>],<<"TOML Example">>},
+    	 {[<<"owner">>,<<"name">>],<<"Tom Preston-Werner">>},
+     	{[<<"owner">>,<<"organization">>],<<"GitHub">>},
+     	{[<<"owner">>,<<"bio">>],
+      	<<"GitHub Cofounder & CEO\nLikes tater tots and beer.">>},
+     	{[<<"owner">>,<<"dob">>],{{1979,5,27},{7,32,0}}},
+     	{[<<"database">>,<<"server">>],<<"192.168.1.1">>},
+     	{[<<"database">>,<<"ports">>],[8001,8001,8002]},
+     	{[<<"database">>,<<"connection_max">>],5000},
+     	{[<<"database">>,<<"enabled">>],true},
+     	{[<<"servers">>,<<"alpha">>,<<"ip">>],<<"10.0.0.1">>},
+     	{[<<"servers">>,<<"alpha">>,<<"dc">>],<<"eqdc10">>},
+     	{[<<"servers">>,<<"beta">>,<<"ip">>],<<"10.0.0.2">>},
+     	{[<<"servers">>,<<"beta">>,<<"dc">>],<<"eqdc10">>},
+     	{[<<"clients">>,<<"data">>],
+      		[[<<"gamma">>,<<"delta">>],[1,2]]},
+     	{[<<"clients">>,<<"hosts">>],[<<"alpha">>,<<"omega">>]}]} =
+    file2(<<"../test/test.toml">>).
 
 parser2_test() ->
 	{ok,[{[<<"title">>],<<"TOML Example">>},
@@ -339,10 +420,10 @@ array_test() ->
 
 speed_test() ->
 	Msg = test_msg(),
-	Now = now(),
+	Now = os:timestamp(),
 	N = 10000,
 	speed_test(Msg, N),
-	Diff = timer:now_diff(now(), Now) / 1000000,
+	Diff = timer:now_diff(os:timestamp(), Now) / 1000000,
 	?debugFmt("~p passes/sec (~p Mbyes/sec)\n", 
 				[round(N/Diff), round(N*length(Msg)/Diff/1024/1024)]).
 
