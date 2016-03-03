@@ -26,7 +26,7 @@
 -module(etoml).
 -author('Carlos Gonzalez <carlosj.gf@gmail.com>').
 
--export([parse/1, parse2/1]).
+-export([parse/1, parse2/1, file/1, file2/1]).
 -export_type([basic_type/0, element/0, block/0]).
 
 -ifdef(TEST).
@@ -44,6 +44,34 @@
 %% ===================================================================
 %% Public
 %% ===================================================================
+
+-spec file(binary()|string()) -> 
+	[block()] | {error, Error}
+	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
+				  {invalid_date, integer()} | {invalid_number, integer()} | 
+				  {invalid_array, integer()} | {invalid_string, integer()} | 
+				  {undefined_value, integer()} | {duplicated_key, binary()}.
+file(Filename) ->
+    try
+        {ok, Result} = file:read_file(Filename),
+        parse(Result)
+    catch
+        throw:Error -> {error, Error}
+    end.
+
+-spec file2(binary()|string()) -> 
+	[{Keys::[binary()], Value::element()}] | {error, Error}
+	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
+				  {invalid_date, integer()} | {invalid_number, integer()} | 
+				  {invalid_array, integer()} | {invalid_string, integer()} |
+				  {undefined_value, integer()} | {duplicated_key, binary()}.
+file2(Filename) ->
+    try
+        {ok, Result} = file:read_file(Filename),
+        parse2(Result)
+    catch
+        throw:Error -> {error, Error}
+    end.
 
 %% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary
 -spec parse(binary()|string()) -> 
