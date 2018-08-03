@@ -47,7 +47,7 @@
 
 %% @doc Parses a TOML `(https://github.com/mojombo/toml)' binary
 -spec parse(binary()|string()) -> 
-	[block()] | {error, Error}
+	{ok, [block()]} | {error, Error}
 	when Error :: {invalid_key, integer()} | {invalid_group, integer()} | 
 				  {invalid_date, integer()} | {invalid_number, integer()} | 
 				  {invalid_array, integer()} | {invalid_string, integer()} | 
